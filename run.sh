@@ -9,30 +9,42 @@ echo "[2] Compiling user space program..."
 gcc -o user_module user_module.c
 
 echo ""
-echo "[3] Running child processes..."
-./user_module
 
-echo "[4] Waiting for parent PID..."
-while [ ! -f parent_pid.txt ]; do sleep 1; done
-PARENT_PID=$(cat parent_pid.txt)
-echo "Found PID: $PARENT_PID"
+echo "[3] Running child processes..."
+gnome-terminal -- bash -c "./user_module; exec bash" &
+sleep 2
 
 echo ""
 
-echo "[4] Loading kernel program..."
+echo "[4] Waiting for parent PID..."
+PARENT_PID=$(pgrep -n user_module)
+
+if [ -z "$PARENT_PID" ]; then
+	echo "Failed to get user module PID"
+	exit 1
+fi
+
+echo "User module PID: $PARENT_PID"
+
+echo ""
+
+echo "[5] Loading kernel program..."
+sleep 45
 sudo insmod kernel_module.ko parent_pid=$PARENT_PID
 
 echo ""
 
-echo "[5] Displaying mem tree from kernel module..."
-cat /proc/mem_tree
+echo "[6] Displaying mem tree from kernel module..."
+gnome-terminal -- bash -c "cat /proc/mem_tree; exec bash"
 
-wait USER_PROGRAM_PID
+echo ""
 
-echo "[6] Unloading kernel module..."
-sudo rmmod tasks_lister_dfs
+echo "[7] Unloading kernel module..."
+sudo rmmod kernel_module
 
-echo "[7] Final clean up..."
+echo "[8] Final clean up..."
 make clean 
+
+echo ""
 
 echo "all done :)"
